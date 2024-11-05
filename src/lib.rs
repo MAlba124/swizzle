@@ -108,79 +108,33 @@ const XXX0_TO_XXXX_OR: u8x64 = u8x64::from_array([
     0u8, 0u8, 0u8, 255u8,
     0u8, 0u8, 0u8, 255u8,
 ]);
-
-macro_rules! swizzle_4_wide_inplace {
-    ($src:expr, $idxs:expr) => {
-        assert!($src.len() % 4 == 0);
-
-        let n_pixels = $src.len() / 4;
-
-        let mut i = 0;
-        while i + VECTOR_WIDTH < n_pixels {
-            simd_swizzle!(
-                u8x64::from_slice(&$src[i * 4..(i + VECTOR_WIDTH) * 4]),
-                $idxs
-            )
-            .copy_to_slice(&mut $src[i * 4..(i + VECTOR_WIDTH) * 4]);
-            i += VECTOR_WIDTH;
-        }
-
-        for j in i..n_pixels {
-            let (r, g, b, a) = (
-                $src[j * 4 + 0],
-                $src[j * 4 + 1],
-                $src[j * 4 + 2],
-                $src[j * 4 + 3],
-            );
-            $src[j * 4 + $idxs[0]] = r;
-            $src[j * 4 + $idxs[1]] = g;
-            $src[j * 4 + $idxs[2]] = b;
-            $src[j * 4 + $idxs[3]] = a;
-        }
-    };
-}
-
 macro_rules! swizzle_4_wide {
     ($src:expr, $dst:expr, $idxs:expr) => {
         assert!($src.len() % 4 == 0 && $src.len() == $dst.len());
 
         let n_pixels = $src.len() / 4;
 
-        let mut i = 0;
-        while i + VECTOR_WIDTH < n_pixels {
+        let end = (n_pixels / VECTOR_WIDTH) * VECTOR_WIDTH;
+        (0..end).step_by(VECTOR_WIDTH).for_each(|i| {
             simd_swizzle!(
                 u8x64::from_slice(&$src[i * 4..(i + VECTOR_WIDTH) * 4]),
                 $idxs
             )
             .copy_to_slice(&mut $dst[i * 4..(i + VECTOR_WIDTH) * 4]);
-            i += VECTOR_WIDTH;
-        }
+        });
 
-        for j in i..n_pixels {
-            $dst[j * 4 + $idxs[0]] = $src[j * 4 + 0];
-            $dst[j * 4 + $idxs[1]] = $src[j * 4 + 1];
-            $dst[j * 4 + $idxs[2]] = $src[j * 4 + 2];
-            $dst[j * 4 + $idxs[3]] = $src[j * 4 + 3];
-        }
-    };
-}
-
-macro_rules! apply_mask_4_wide_inplace {
-    ($src:expr, $mask:expr, $or:expr) => {
-        assert!($src.len() % 4 == 0);
-
-        let n_pixels = $src.len() / 4;
-
-        let mut i = 0;
-        while i + VECTOR_WIDTH < n_pixels {
-            u8x64::load_select(&$src[i * 4..(i + VECTOR_WIDTH) * 4], $mask, XXX0_TO_XXXX_OR)
-                .copy_to_slice(&mut $src[i * 4..(i + VECTOR_WIDTH) * 4]);
-            i += VECTOR_WIDTH;
-        }
-
-        for j in i..n_pixels {
-            $src[j * 4 + 3] = 255;
-        }
+        (end..n_pixels).for_each(|i| {
+            let (a, b, c, d) = (
+                $src[i * 4 + 0],
+                $src[i * 4 + 1],
+                $src[i * 4 + 2],
+                $src[i * 4 + 3],
+            );
+            $dst[i * 4 + $idxs[0] as usize] = a;
+            $dst[i * 4 + $idxs[1] as usize] = b;
+            $dst[i * 4 + $idxs[2] as usize] = c;
+            $dst[i * 4 + $idxs[3] as usize] = d;
+        });
     };
 }
 
@@ -190,46 +144,23 @@ macro_rules! apply_mask_4_wide {
 
         let n_pixels = $src.len() / 4;
 
-        let mut i = 0;
-        while i + VECTOR_WIDTH < n_pixels {
+        let end = (n_pixels / VECTOR_WIDTH) * VECTOR_WIDTH;
+        (0..end).step_by(VECTOR_WIDTH).for_each(|i| {
             u8x64::load_select(&$src[i * 4..(i + VECTOR_WIDTH) * 4], $mask, XXX0_TO_XXXX_OR)
                 .copy_to_slice(&mut $dst[i * 4..(i + VECTOR_WIDTH) * 4]);
-            i += VECTOR_WIDTH;
-        }
+        });
 
-        for j in i..n_pixels {
-            $dst[j * 4 + 0] = $src[j * 4 + 0];
-            $dst[j * 4 + 1] = $src[j * 4 + 1];
-            $dst[j * 4 + 2] = $src[j * 4 + 2];
-            $dst[j * 4 + 3] = 255;
-        }
-    };
-}
-
-macro_rules! apply_x_mask_and_swizzle_4_wide_inplace {
-    ($src:expr, $or:expr, $idxs:expr) => {
-        assert!($src.len() % 4 == 0);
-
-        let n_pixels = $src.len() / 4;
-        let mask = xxx0_to_xxxx_mask!();
-
-        let mut i = 0;
-        while i + VECTOR_WIDTH < n_pixels {
-            simd_swizzle!(
-                u8x64::load_select(&$src[i * 4..(i + VECTOR_WIDTH) * 4], mask, XXX0_TO_XXXX_OR),
-                $idxs
-            )
-            .copy_to_slice(&mut $src[i * 4..(i + VECTOR_WIDTH) * 4]);
-            i += VECTOR_WIDTH;
-        }
-
-        for j in i..n_pixels {
-            let (a, b, c) = ($src[j * 4 + 0], $src[j * 4 + 1], $src[j * 4 + 2]);
-            $src[j * 4 + $idxs[0]] = a;
-            $src[j * 4 + $idxs[1]] = b;
-            $src[j * 4 + $idxs[2]] = c;
-            $src[j * 4 + $idxs[3]] = 255;
-        }
+        (end..n_pixels).for_each(|i| {
+            let (a, b, c) = (
+                $src[i * 4 + 0],
+                $src[i * 4 + 1],
+                $src[i * 4 + 2],
+            );
+            $dst[i * 4 + 0] = a;
+            $dst[i * 4 + 1] = b;
+            $dst[i * 4 + 2] = c;
+            $dst[i * 4 + 3] = 255;
+        });
     };
 }
 
@@ -240,22 +171,22 @@ macro_rules! apply_x_mask_and_swizzle_4_wide {
         let n_pixels = $src.len() / 4;
         let mask = xxx0_to_xxxx_mask!();
 
-        let mut i = 0;
-        while i + VECTOR_WIDTH < n_pixels {
+        let end = (n_pixels / VECTOR_WIDTH) * VECTOR_WIDTH;
+        (0..end).step_by(VECTOR_WIDTH).for_each(|i| {
             simd_swizzle!(
                 u8x64::load_select(&$src[i * 4..(i + VECTOR_WIDTH) * 4], mask, XXX0_TO_XXXX_OR),
                 $idxs
             )
             .copy_to_slice(&mut $dst[i * 4..(i + VECTOR_WIDTH) * 4]);
-            i += VECTOR_WIDTH;
-        }
+        });
 
-        for j in i..n_pixels {
-            $dst[j * 4 + $idxs[0]] = $src[j * 4 + 0];
-            $dst[j * 4 + $idxs[1]] = $src[j * 4 + 1];
-            $dst[j * 4 + $idxs[2]] = $src[j * 4 + 2];
-            $dst[j * 4 + $idxs[3]] = 255;
-        }
+        (end..n_pixels).for_each(|i| {
+            let (a, b, c) = ($src[i * 4 + 0], $src[i * 4 + 1], $src[i * 4 + 2]);
+            $dst[i * 4 + $idxs[0]] = a;
+            $dst[i * 4 + $idxs[1]] = b;
+            $dst[i * 4 + $idxs[2]] = c;
+            $dst[i * 4 + $idxs[3]] = 255;
+        });
     };
 }
 
@@ -295,7 +226,8 @@ fn serial_swizzle_4_wide(src: &[u8], dst: &mut [u8], idxs: &[usize; 4]) {
 ///
 /// Panics if `src.len` is not multiple of a 4.
 pub fn rgba_to_bgra_inplace(src: &mut [u8]) {
-    swizzle_4_wide_inplace!(src, RGBA_TO_BGRA_SWIZZLE_IDXS);
+    // swizzle_4_wide_inplace!(src, RGBA_TO_BGRA_SWIZZLE_IDXS);
+    swizzle_4_wide!(src, src, RGBA_TO_BGRA_SWIZZLE_IDXS);
 }
 
 /// Convert RGBA data to BGRA and store the result to `dst`.
@@ -324,7 +256,7 @@ pub fn rgba_to_bgra(src: &[u8], dst: &mut [u8]) {
 ///
 /// Panics if `src.len` is not multiple of a 4.
 pub fn bgra_to_rgba_inplace(src: &mut [u8]) {
-    swizzle_4_wide_inplace!(src, BGRA_TO_RGBA_SWIZZLE_IDXS);
+    swizzle_4_wide!(src, src, BGRA_TO_RGBA_SWIZZLE_IDXS);
 }
 
 /// Convert BGRA data to RGBA and store the result to `dst`.
@@ -353,7 +285,7 @@ pub fn bgra_to_rgba(src: &[u8], dst: &mut [u8]) {
 ///
 /// Panics if `src.len` is not multiple of a 4.
 pub fn rgb0_to_rgbx_inplace(src: &mut [u8]) {
-    apply_mask_4_wide_inplace!(src, xxx0_to_xxxx_mask!(), XXX0_TO_XXXX_OR);
+    apply_mask_4_wide!(src, src, xxx0_to_xxxx_mask!(), XXX0_TO_XXXX_OR);
 }
 
 /// Convert RGB0 data to RGBX and store the result to `dst`.
@@ -382,7 +314,7 @@ pub fn rgb0_to_rgbx(src: &[u8], dst: &mut [u8]) {
 ///
 /// Panics if `src.len` is not multiple of a 4.
 pub fn bgr0_to_bgrx_inplace(src: &mut [u8]) {
-    apply_mask_4_wide_inplace!(src, xxx0_to_xxxx_mask!(), XXX0_TO_XXXX_OR);
+    apply_mask_4_wide!(src, src, xxx0_to_xxxx_mask!(), XXX0_TO_XXXX_OR);
 }
 
 /// Convert BGR0 data to BGRX and store the result to `dst`.
@@ -411,7 +343,7 @@ pub fn bgr0_to_bgrx(src: &[u8], dst: &mut [u8]) {
 ///
 /// Panics if `src.len` is not multiple of a 4.
 pub fn rgb0_to_bgrx_inplace(src: &mut [u8]) {
-    apply_x_mask_and_swizzle_4_wide_inplace!(src, XXX0_TO_XXX_OR, RGBA_TO_BGRA_SWIZZLE_IDXS);
+    apply_x_mask_and_swizzle_4_wide!(src, src, XXX0_TO_XXX_OR, RGBA_TO_BGRA_SWIZZLE_IDXS);
 }
 
 /// Convert RGB0 data to BGRX and store the result to `dst`.
@@ -440,7 +372,7 @@ pub fn rgb0_to_bgrx(src: &[u8], dst: &mut [u8]) {
 ///
 /// Panics if `src.len` is not multiple of a 4.
 pub fn bgr0_to_rgbx_inplace(src: &mut [u8]) {
-    apply_x_mask_and_swizzle_4_wide_inplace!(src, XXX0_TO_XXXX_OR, BGRA_TO_RGBA_SWIZZLE_IDXS);
+    apply_x_mask_and_swizzle_4_wide!(src, src, XXX0_TO_XXXX_OR, BGRA_TO_RGBA_SWIZZLE_IDXS);
 }
 
 /// Convert BGR0 data to RGBX and store the result to `dst`.
