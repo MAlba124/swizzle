@@ -157,10 +157,10 @@ macro_rules! swizzle_4_wide {
         }
 
         for j in i..n_pixels {
-            $dst[j * 4 + 0] = $src[j * 4 + 2];
-            $dst[j * 4 + 1] = $src[j * 4 + 1];
-            $dst[j * 4 + 2] = $src[j * 4 + 0];
-            $dst[j * 4 + 3] = $src[j * 4 + 3];
+            $dst[j * 4 + $idxs[0]] = $src[j * 4 + 0];
+            $dst[j * 4 + $idxs[1]] = $src[j * 4 + 1];
+            $dst[j * 4 + $idxs[2]] = $src[j * 4 + 2];
+            $dst[j * 4 + $idxs[3]] = $src[j * 4 + 3];
         }
     };
 }
