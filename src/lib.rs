@@ -79,10 +79,10 @@ macro_rules! swizzle_4_wide_inline {
                 $src[j * 4 + 2],
                 $src[j * 4 + 3],
             );
-            $src[j * 4 + 0] = b;
-            $src[j * 4 + 1] = g;
-            $src[j * 4 + 2] = r;
-            $src[j * 4 + 3] = a;
+            $src[j * 4 + $idxs[0]] = r;
+            $src[j * 4 + $idxs[1]] = g;
+            $src[j * 4 + $idxs[2]] = b;
+            $src[j * 4 + $idxs[3]] = a;
         }
     };
 }
