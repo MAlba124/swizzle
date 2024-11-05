@@ -224,11 +224,7 @@ macro_rules! apply_x_mask_and_swizzle_4_wide_inplace {
         }
 
         for j in i..n_pixels {
-            let (a, b, c) = (
-                $src[j * 4 + 0],
-                $src[j * 4 + 1],
-                $src[j * 4 + 2],
-            );
+            let (a, b, c) = ($src[j * 4 + 0], $src[j * 4 + 1], $src[j * 4 + 2]);
             $src[j * 4 + $idxs[0]] = a;
             $src[j * 4 + $idxs[1]] = b;
             $src[j * 4 + $idxs[2]] = c;
