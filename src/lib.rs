@@ -27,78 +27,105 @@ use std::simd::{simd_swizzle, u8x64};
 const VECTOR_WIDTH: usize = 16;
 
 #[rustfmt::skip]
-const RGBA_TO_BGRA_SWIZZLE_IDXS: [usize; VECTOR_WIDTH * 4] = [
-    2 + (4 * 0), 1 + (4 * 0), 0 + (4 * 0), 3 + (4 * 0),
-    2 + (4 * 1), 1 + (4 * 1), 0 + (4 * 1), 3 + (4 * 1),
-    2 + (4 * 2), 1 + (4 * 2), 0 + (4 * 2), 3 + (4 * 2),
-    2 + (4 * 3), 1 + (4 * 3), 0 + (4 * 3), 3 + (4 * 3),
+macro_rules! idx_order {
+    ($a:expr, $b:expr, $c:expr, $d:expr) => {
+        [
+            $a + (4 * 0), $b + (4 * 0), $c + (4 * 0), $d + (4 * 0),
+            $a + (4 * 1), $b + (4 * 1), $c + (4 * 1), $d + (4 * 1),
+            $a + (4 * 2), $b + (4 * 2), $c + (4 * 2), $d + (4 * 2),
+            $a + (4 * 3), $b + (4 * 3), $c + (4 * 3), $d + (4 * 3),
 
-    2 + (4 * 4), 1 + (4 * 4), 0 + (4 * 4), 3 + (4 * 4),
-    2 + (4 * 5), 1 + (4 * 5), 0 + (4 * 5), 3 + (4 * 5),
-    2 + (4 * 6), 1 + (4 * 6), 0 + (4 * 6), 3 + (4 * 6),
-    2 + (4 * 7), 1 + (4 * 7), 0 + (4 * 7), 3 + (4 * 7),
+            $a + (4 * 4), $b + (4 * 4), $c + (4 * 4), $d + (4 * 4),
+            $a + (4 * 5), $b + (4 * 5), $c + (4 * 5), $d + (4 * 5),
+            $a + (4 * 6), $b + (4 * 6), $c + (4 * 6), $d + (4 * 6),
+            $a + (4 * 7), $b + (4 * 7), $c + (4 * 7), $d + (4 * 7),
 
-    2 + (4 * 8), 1 + (4 * 8), 0 + (4 * 8), 3 + (4 * 8),
-    2 + (4 * 9), 1 + (4 * 9), 0 + (4 * 9), 3 + (4 * 9),
-    2 + (4 * 10), 1 + (4 * 10), 0 + (4 * 10), 3 + (4 * 10),
-    2 + (4 * 11), 1 + (4 * 11), 0 + (4 * 11), 3 + (4 * 11),
+            $a + (4 * 8), $b + (4 * 8), $c + (4 * 8), $d + (4 * 8),
+            $a + (4 * 9), $b + (4 * 9), $c + (4 * 9), $d + (4 * 9),
+            $a + (4 * 10), $b + (4 * 10), $c + (4 * 10), $d + (4 * 10),
+            $a + (4 * 11), $b + (4 * 11), $c + (4 * 11), $d + (4 * 11),
 
-    2 + (4 * 12), 1 + (4 * 12), 0 + (4 * 12), 3 + (4 * 12),
-    2 + (4 * 13), 1 + (4 * 13), 0 + (4 * 13), 3 + (4 * 13),
-    2 + (4 * 14), 1 + (4 * 14), 0 + (4 * 14), 3 + (4 * 14),
-    2 + (4 * 15), 1 + (4 * 15), 0 + (4 * 15), 3 + (4 * 15),
-];
-
-pub fn rgba_to_bgra_inline(src: &mut [u8]) {
-    assert!(src.len() % 4 == 0);
-
-    let n_pixels = src.len() / 4;
-
-    let mut i = 0;
-    while i + VECTOR_WIDTH < n_pixels {
-        simd_swizzle!(
-            u8x64::from_slice(&src[i * 4..(i + VECTOR_WIDTH) * 4]),
-            RGBA_TO_BGRA_SWIZZLE_IDXS
-        )
-        .copy_to_slice(&mut src[i * 4..(i + VECTOR_WIDTH) * 4]);
-        i += VECTOR_WIDTH;
-    }
-
-    for j in i..n_pixels {
-        let (r, g, b, a) = (
-            src[j * 4 + 0],
-            src[j * 4 + 1],
-            src[j * 4 + 2],
-            src[j * 4 + 3],
-        );
-        src[j * 4 + 0] = b;
-        src[j * 4 + 1] = g;
-        src[j * 4 + 2] = r;
-        src[j * 4 + 3] = a;
+            $a + (4 * 12), $b + (4 * 12), $c + (4 * 12), $d + (4 * 12),
+            $a + (4 * 13), $b + (4 * 13), $c + (4 * 13), $d + (4 * 13),
+            $a + (4 * 14), $b + (4 * 14), $c + (4 * 14), $d + (4 * 14),
+            $a + (4 * 15), $b + (4 * 15), $c + (4 * 15), $d + (4 * 15),
+        ]
     }
 }
 
+const RGBA_TO_BGRA_SWIZZLE_IDXS: [usize; VECTOR_WIDTH * 4] = idx_order!(2, 1, 0, 3);
+const BGRA_TO_RGBA_SWIZZLE_IDXS: [usize; VECTOR_WIDTH * 4] = idx_order!(2, 1, 0, 3);
+
+macro_rules! swizzle_4_wide_inline {
+    ($src:expr, $idxs:expr) => {
+        assert!($src.len() % 4 == 0);
+
+        let n_pixels = $src.len() / 4;
+
+        let mut i = 0;
+        while i + VECTOR_WIDTH < n_pixels {
+            simd_swizzle!(
+                u8x64::from_slice(&$src[i * 4..(i + VECTOR_WIDTH) * 4]),
+                $idxs
+            )
+            .copy_to_slice(&mut $src[i * 4..(i + VECTOR_WIDTH) * 4]);
+            i += VECTOR_WIDTH;
+        }
+
+        for j in i..n_pixels {
+            let (r, g, b, a) = (
+                $src[j * 4 + 0],
+                $src[j * 4 + 1],
+                $src[j * 4 + 2],
+                $src[j * 4 + 3],
+            );
+            $src[j * 4 + 0] = b;
+            $src[j * 4 + 1] = g;
+            $src[j * 4 + 2] = r;
+            $src[j * 4 + 3] = a;
+        }
+    };
+}
+
+macro_rules! swizzle_4_wide {
+    ($src:expr, $dst:expr, $idxs:expr) => {
+        assert!($src.len() % 4 == 0 && $src.len() == $dst.len());
+
+        let n_pixels = $src.len() / 4;
+
+        let mut i = 0;
+        while i + VECTOR_WIDTH < n_pixels {
+            simd_swizzle!(
+                u8x64::from_slice(&$src[i * 4..(i + VECTOR_WIDTH) * 4]),
+                $idxs
+            )
+            .copy_to_slice(&mut $dst[i * 4..(i + VECTOR_WIDTH) * 4]);
+            i += VECTOR_WIDTH;
+        }
+
+        for j in i..n_pixels {
+            $dst[j * 4 + 0] = $src[j * 4 + 2];
+            $dst[j * 4 + 1] = $src[j * 4 + 1];
+            $dst[j * 4 + 2] = $src[j * 4 + 0];
+            $dst[j * 4 + 3] = $src[j * 4 + 3];
+        }
+    };
+}
+
+pub fn rgba_to_bgra_inline(src: &mut [u8]) {
+    swizzle_4_wide_inline!(src, RGBA_TO_BGRA_SWIZZLE_IDXS);
+}
+
 pub fn rgba_to_bgra(src: &[u8], dst: &mut [u8]) {
-    assert!(src.len() % 4 == 0 && src.len() == dst.len());
+    swizzle_4_wide!(src, dst, RGBA_TO_BGRA_SWIZZLE_IDXS);
+}
 
-    let n_pixels = src.len() / 4;
+pub fn bgra_to_rgba_inline(src: &mut [u8]) {
+    swizzle_4_wide_inline!(src, BGRA_TO_RGBA_SWIZZLE_IDXS);
+}
 
-    let mut i = 0;
-    while i + VECTOR_WIDTH < n_pixels {
-        simd_swizzle!(
-            u8x64::from_slice(&src[i * 4..(i + VECTOR_WIDTH) * 4]),
-            RGBA_TO_BGRA_SWIZZLE_IDXS
-        )
-        .copy_to_slice(&mut dst[i * 4..(i + VECTOR_WIDTH) * 4]);
-        i += VECTOR_WIDTH;
-    }
-
-    for j in i..n_pixels {
-        dst[j * 4 + 0] = src[j * 4 + 2];
-        dst[j * 4 + 1] = src[j * 4 + 1];
-        dst[j * 4 + 2] = src[j * 4 + 0];
-        dst[j * 4 + 3] = src[j * 4 + 3];
-    }
+pub fn bgra_to_rgba(src: &[u8], dst: &mut [u8]) {
+    swizzle_4_wide!(src, dst, BGRA_TO_RGBA_SWIZZLE_IDXS);
 }
 
 #[cfg(test)]
@@ -120,7 +147,7 @@ mod tests {
     fn generate_xxxx_image(width: usize, heigh: usize, x1: u8, x2: u8, x3: u8, x4: u8) -> Vec<u8> {
         assert!((width * heigh) % 4 == 0);
         let mut xxxx = Vec::with_capacity(width * heigh);
-        for i in 0..width * heigh {
+        for _ in 0..width * heigh {
             xxxx.push(x1);
             xxxx.push(x2);
             xxxx.push(x3);
@@ -141,11 +168,30 @@ mod tests {
     #[test]
     fn test_rgba_to_bgra() {
         let (width, height) = (1920, 1080);
-        let mut rgba_img = generate_xxxx_image(width, height, 111, 222, 100, 255);
+        let rgba_img = generate_xxxx_image(width, height, 111, 222, 100, 255);
         let correct_bgra = generate_xxxx_image(width, height, 100, 222, 111, 255);
         let mut bgra = vec![0; width * height * 4];
         rgba_to_bgra(&rgba_img, &mut bgra);
         assert_eq!(bgra, correct_bgra);
+    }
+
+    #[test]
+    fn test_bgra_to_rgba_inline() {
+        let (width, height) = (1920, 1080);
+        let mut bgra = generate_xxxx_image(width, height, 111, 222, 100, 255);
+        let correct_rgba = generate_xxxx_image(width, height, 100, 222, 111, 255);
+        bgra_to_rgba_inline(&mut bgra);
+        assert_eq!(bgra, correct_rgba);
+    }
+
+    #[test]
+    fn test_bgra_to_rgba() {
+        let (width, height) = (1920, 1080);
+        let bgra = generate_xxxx_image(width, height, 111, 222, 100, 255);
+        let correct_rgba = generate_xxxx_image(width, height, 100, 222, 111, 255);
+        let mut rgba = vec![0; width * height * 4];
+        bgra_to_rgba(&bgra, &mut rgba);
+        assert_eq!(rgba, correct_rgba);
     }
 
     #[bench]
