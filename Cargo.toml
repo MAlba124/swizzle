@@ -1,5 +1,5 @@
 [package]
-name = "swizzle"
+name = "image_swizzle"
 version = "0.1.0"
 edition = "2021"
 
