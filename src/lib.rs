@@ -206,6 +206,37 @@ macro_rules! apply_mask_4_wide {
     };
 }
 
+macro_rules! apply_x_mask_and_swizzle_4_wide_inplace {
+    ($src:expr, $or:expr, $idxs:expr) => {
+        assert!($src.len() % 4 == 0);
+
+        let n_pixels = $src.len() / 4;
+        let mask = xxx0_to_xxxx_mask!();
+
+        let mut i = 0;
+        while i + VECTOR_WIDTH < n_pixels {
+            simd_swizzle!(
+                u8x64::load_select(&$src[i * 4..(i + VECTOR_WIDTH) * 4], mask, XXX0_TO_XXXX_OR),
+                $idxs
+            )
+            .copy_to_slice(&mut $src[i * 4..(i + VECTOR_WIDTH) * 4]);
+            i += VECTOR_WIDTH;
+        }
+
+        for j in i..n_pixels {
+            let (a, b, c) = (
+                $src[j * 4 + 0],
+                $src[j * 4 + 1],
+                $src[j * 4 + 2],
+            );
+            $src[j * 4 + $idxs[0]] = a;
+            $src[j * 4 + $idxs[1]] = b;
+            $src[j * 4 + $idxs[2]] = c;
+            $src[j * 4 + $idxs[3]] = 255;
+        }
+    };
+}
+
 macro_rules! apply_x_mask_and_swizzle_4_wide {
     ($src:expr, $dst:expr, $or:expr, $idxs:expr) => {
         assert!($src.len() % 4 == 0 && $src.len() == $dst.len());
@@ -384,9 +415,7 @@ pub fn bgr0_to_bgrx(src: &[u8], dst: &mut [u8]) {
 ///
 /// Panics if `src.len` is not multiple of a 4.
 pub fn rgb0_to_bgrx_inplace(src: &mut [u8]) {
-    // TODO: Do these in a single call
-    rgb0_to_rgbx_inplace(src);
-    rgba_to_bgra_inplace(src);
+    apply_x_mask_and_swizzle_4_wide_inplace!(src, XXX0_TO_XXX_OR, RGBA_TO_BGRA_SWIZZLE_IDXS);
 }
 
 /// Convert RGB0 data to BGRX and store the result to `dst`.
@@ -415,9 +444,7 @@ pub fn rgb0_to_bgrx(src: &[u8], dst: &mut [u8]) {
 ///
 /// Panics if `src.len` is not multiple of a 4.
 pub fn bgr0_to_rgbx_inplace(src: &mut [u8]) {
-    // TODO: Do these in a single call
-    bgr0_to_bgrx_inplace(src);
-    bgra_to_rgba_inplace(src);
+    apply_x_mask_and_swizzle_4_wide_inplace!(src, XXX0_TO_XXXX_OR, BGRA_TO_RGBA_SWIZZLE_IDXS);
 }
 
 /// Convert BGR0 data to RGBX and store the result to `dst`.
@@ -452,7 +479,7 @@ mod tests {
     use super::*;
 
     fn generate_xxxx_image(width: usize, heigh: usize, x1: u8, x2: u8, x3: u8, x4: u8) -> Vec<u8> {
-        assert!((width * heigh) % 4 == 0);
+        assert!((width * heigh * 4) % 4 == 0);
         let mut xxxx = Vec::with_capacity(width * heigh);
         for _ in 0..width * heigh {
             xxxx.push(x1);
@@ -473,11 +500,40 @@ mod tests {
     }
 
     #[test]
+    fn test_rgba_to_bgra_inplace_short_lane_count() {
+        let (width, height) = (3, 3);
+        let mut rgba_img = generate_xxxx_image(width, height, 111, 222, 100, 255);
+        let correct_bgra = generate_xxxx_image(width, height, 100, 222, 111, 255);
+        rgba_to_bgra_inplace(&mut rgba_img);
+        assert_eq!(rgba_img, correct_bgra);
+    }
+
+    #[test]
+    fn test_rgba_to_bgra_inplace_combi() {
+        let (width, height) = (5, 5);
+        let mut rgba_img = generate_xxxx_image(width, height, 111, 222, 100, 255);
+        let correct_bgra = generate_xxxx_image(width, height, 100, 222, 111, 255);
+        rgba_to_bgra_inplace(&mut rgba_img);
+        assert_eq!(rgba_img, correct_bgra);
+    }
+
+    #[test]
     fn test_rgba_to_bgra() {
         let (width, height) = (1920, 1080);
         let rgba_img = generate_xxxx_image(width, height, 111, 222, 100, 255);
         let correct_bgra = generate_xxxx_image(width, height, 100, 222, 111, 255);
         let mut bgra = vec![0; width * height * 4];
+        rgba_to_bgra(&rgba_img, &mut bgra);
+        assert_eq!(bgra, correct_bgra);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_panic_rgba_to_bgra() {
+        let (width, height) = (1920, 1080);
+        let rgba_img = generate_xxxx_image(width, height, 111, 222, 100, 255);
+        let correct_bgra = generate_xxxx_image(width, height, 100, 222, 111, 255);
+        let mut bgra = vec![0; width * height * 4 - 10];
         rgba_to_bgra(&rgba_img, &mut bgra);
         assert_eq!(bgra, correct_bgra);
     }
