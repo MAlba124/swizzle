@@ -108,6 +108,8 @@ const XXX0_TO_XXXX_OR: u8x64 = u8x64::from_array([
     0u8, 0u8, 0u8, 255u8,
 ]);
 
+// NOTE: Loading vector is slow. need 2 optimize
+
 macro_rules! swizzle_4_wide {
     ($src:expr, $dst:expr, $idxs:expr) => {
         assert!($src.len() % 4 == 0 && $src.len() == $dst.len());
@@ -404,10 +406,10 @@ mod tests {
 
     use super::*;
 
-    fn generate_xxxx_image(width: usize, heigh: usize, x1: u8, x2: u8, x3: u8, x4: u8) -> Vec<u8> {
-        assert!((width * heigh * 4) % 4 == 0);
-        let mut xxxx = Vec::with_capacity(width * heigh);
-        for _ in 0..width * heigh {
+    fn generate_xxxx_image(width: usize, height: usize, x1: u8, x2: u8, x3: u8, x4: u8) -> Vec<u8> {
+        assert!((width * height * 4) % 4 == 0);
+        let mut xxxx = Vec::with_capacity(width * height);
+        for _ in 0..width * height {
             xxxx.push(x1);
             xxxx.push(x2);
             xxxx.push(x3);
@@ -592,12 +594,71 @@ mod tests {
     }
 
     #[bench]
+    fn bench_serial_rgba_to_bgra_inplace(b: &mut Bencher) {
+        let (width, height) = (4096, 2160);
+        let mut rgba = generate_xxxx_image(width, height, 111, 222, 100, 255);
+        let idxs = [2, 1, 0, 3];
+        b.iter(|| {
+            serial_swizzle_4_wide_inplace(&mut rgba, &idxs);
+        });
+    }
+
+    #[bench]
     fn bench_vectorized_rgba_to_bgra(b: &mut Bencher) {
         let (width, height) = (4096, 2160);
         let rgba = generate_xxxx_image(width, height, 111, 222, 100, 255);
         let mut bgra = vec![0; width * height * 4];
         b.iter(|| {
             rgba_to_bgra(&rgba, &mut bgra);
+        });
+    }
+
+    #[bench]
+    fn bench_vectorized_rgba_to_bgra_inplace(b: &mut Bencher) {
+        let (width, height) = (4096, 2160);
+        let mut rgba = generate_xxxx_image(width, height, 111, 222, 100, 255);
+        b.iter(|| {
+            rgba_to_bgra_inplace(&mut rgba);
+        });
+    }
+
+    #[bench]
+    fn bench_big_serial_rgba_to_bgra(b: &mut Bencher) {
+        let (width, height) = (4096, 4096);
+        let rgba = generate_xxxx_image(width, height, 111, 222, 100, 255);
+        let mut bgra = vec![0; width * height * 4];
+        let idxs = [2, 1, 0, 3];
+        b.iter(|| {
+            serial_swizzle_4_wide(&rgba, &mut bgra, &idxs);
+        });
+    }
+
+    #[bench]
+    fn bench_big_serial_rgba_to_bgra_inplace(b: &mut Bencher) {
+        let (width, height) = (4096, 4096);
+        let mut rgba = generate_xxxx_image(width, height, 111, 222, 100, 255);
+        let idxs = [2, 1, 0, 3];
+        b.iter(|| {
+            serial_swizzle_4_wide_inplace(&mut rgba, &idxs);
+        });
+    }
+
+    #[bench]
+    fn bench_big_vectorized_rgba_to_bgra(b: &mut Bencher) {
+        let (width, height) = (4096, 4096);
+        let rgba = generate_xxxx_image(width, height, 111, 222, 100, 255);
+        let mut bgra = vec![0; width * height * 4];
+        b.iter(|| {
+            rgba_to_bgra(&rgba, &mut bgra);
+        });
+    }
+
+    #[bench]
+    fn bench_big_vectorized_rgba_to_bgra_inplace(b: &mut Bencher) {
+        let (width, height) = (4096, 4096);
+        let mut rgba = generate_xxxx_image(width, height, 111, 222, 100, 255);
+        b.iter(|| {
+            rgba_to_bgra_inplace(&mut rgba);
         });
     }
 }
