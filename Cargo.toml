@@ -4,6 +4,7 @@ description = "SIMD accelerated image swizzling routines"
 repository = "https://github.com/MAlba124/swizzle"
 homepage = "https://github.com/MAlba124/swizzle"
 readme = "README.md"
+authors = ["Marcus Lian Hanestad <marlhan@proton.me>"]
 version = "0.1.0"
 edition = "2021"
 license-file = "LICENSE"
