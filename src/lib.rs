@@ -112,6 +112,36 @@ macro_rules! swizzle_4_wide {
     };
 }
 
+#[inline(always)]
+fn serial_swizzle_4_wide_inline(src: &mut [u8], idxs: &[usize; 4]) {
+    assert!(src.len() % 4 == 0);
+
+    for i in (0..src.len()).step_by(4) {
+        let (a, b, c, d) = (
+            src[i + 0],
+            src[i + 1],
+            src[i + 2],
+            src[i + 3],
+        );
+        src[i + idxs[0]] = a;
+        src[i + idxs[1]] = b;
+        src[i + idxs[2]] = c;
+        src[i + idxs[3]] = d;
+    }
+}
+
+#[inline(always)]
+fn serial_swizzle_4_wide(src: &[u8], dst: &mut [u8], idxs: &[usize; 4]) {
+    assert!(src.len() % 4 == 0);
+
+    for i in (0..src.len()).step_by(4) {
+        dst[i + idxs[0]] = src[i + 0];
+        dst[i + idxs[1]] = src[i + 1];
+        dst[i + idxs[2]] = src[i + 2];
+        dst[i + idxs[3]] = src[i + 3];
+    }
+}
+
 pub fn rgba_to_bgra_inline(src: &mut [u8]) {
     swizzle_4_wide_inline!(src, RGBA_TO_BGRA_SWIZZLE_IDXS);
 }
@@ -133,16 +163,6 @@ mod tests {
     use test::Bencher;
 
     use super::*;
-
-    fn scalar_rgba_to_bgra(rgba: &[u8], bgra: &mut [u8]) {
-        assert!(rgba.len() % 4 == 0 && rgba.len() == bgra.len());
-        for i in (0..rgba.len()).step_by(4) {
-            bgra[i + 0] = rgba[i + 2];
-            bgra[i + 1] = rgba[i + 1];
-            bgra[i + 2] = rgba[i + 0];
-            bgra[i + 3] = rgba[i + 3];
-        }
-    }
 
     fn generate_xxxx_image(width: usize, heigh: usize, x1: u8, x2: u8, x3: u8, x4: u8) -> Vec<u8> {
         assert!((width * heigh) % 4 == 0);
@@ -194,18 +214,38 @@ mod tests {
         assert_eq!(rgba, correct_rgba);
     }
 
+    #[test]
+    fn test_serial_rgba_to_bgra_inline() {
+        let (width, height) = (1920, 1080);
+        let mut rgba_img = generate_xxxx_image(width, height, 111, 222, 100, 255);
+        let correct_bgra = generate_xxxx_image(width, height, 100, 222, 111, 255);
+        serial_swizzle_4_wide_inline(&mut rgba_img, &[2, 1, 0, 3]);
+        assert_eq!(rgba_img, correct_bgra);
+    }
+
+    #[test]
+    fn test_serial_rgba_to_bgra() {
+        let (width, height) = (1920, 1080);
+        let rgba_img = generate_xxxx_image(width, height, 111, 222, 100, 255);
+        let correct_bgra = generate_xxxx_image(width, height, 100, 222, 111, 255);
+        let mut bgra = vec![0; width * height * 4];
+        serial_swizzle_4_wide(&rgba_img, &mut bgra, &[2, 1, 0, 3]);
+        assert_eq!(bgra, correct_bgra);
+    }
+
     #[bench]
-    fn bench_scalar_rgba_to_bgra(b: &mut Bencher) {
+    fn bench_serial_rgba_to_bgra(b: &mut Bencher) {
         let (width, height) = (4096, 2160);
         let rgba = generate_xxxx_image(width, height, 111, 222, 100, 255);
         let mut bgra = vec![0; width * height * 4];
+        let idxs = [2, 1, 0, 3];
         b.iter(|| {
-            scalar_rgba_to_bgra(&rgba, &mut bgra);
+            serial_swizzle_4_wide(&rgba, &mut bgra, &idxs);
         });
     }
 
     #[bench]
-    fn bench_vector_rgba_to_bgra(b: &mut Bencher) {
+    fn bench_vectorized_rgba_to_bgra(b: &mut Bencher) {
         let (width, height) = (4096, 2160);
         let rgba = generate_xxxx_image(width, height, 111, 222, 100, 255);
         let mut bgra = vec![0; width * height * 4];
