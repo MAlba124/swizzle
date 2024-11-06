@@ -26,7 +26,7 @@
 
 extern crate test;
 
-use std::simd::{self, simd_swizzle, u8x16};
+use std::simd::{self, simd_swizzle, u8x16, u8x4};
 
 use lazy_static::lazy_static;
 
@@ -34,8 +34,8 @@ use lazy_static::lazy_static;
 macro_rules! idx_order {
     ($a:expr, $b:expr, $c:expr, $d:expr) => {
         [
-            $a + (4 * 0), $b + (4 * 0), $c + (4 * 0), $d + (4 * 0),
-            $a + (4 * 1), $b + (4 * 1), $c + (4 * 1), $d + (4 * 1),
+            $a          , $b          , $c          , $d          ,
+            $a +  4     , $b +  4     , $c +  4     , $d +  4     ,
             $a + (4 * 2), $b + (4 * 2), $c + (4 * 2), $d + (4 * 2),
             $a + (4 * 3), $b + (4 * 3), $c + (4 * 3), $d + (4 * 3),
         ]
@@ -73,12 +73,11 @@ macro_rules! swizzle_4_wide {
                 .copy_to_slice(&mut $dst[i..i + VECTOR_WIDTH]);
         });
 
+        const SHORT_IDXS: [usize; 4] = [$idxs[0], $idxs[1], $idxs[2], $idxs[3]];
         (end..$src.len()).step_by(4).for_each(|i| {
-            let (a, b, c, d) = ($src[i + 0], $src[i + 1], $src[i + 2], $src[i + 3]);
-            $dst[i + $idxs[0]] = a;
-            $dst[i + $idxs[1]] = b;
-            $dst[i + $idxs[2]] = c;
-            $dst[i + $idxs[3]] = d;
+            simd_swizzle!(
+                u8x4::from_slice(&$src[i..i + 4]), SHORT_IDXS,
+            ).copy_to_slice(&mut $dst[i..i + 4]);
         });
     };
 }
@@ -93,12 +92,16 @@ macro_rules! apply_mask_4_wide {
                 .copy_to_slice(&mut $dst[i..i + VECTOR_WIDTH]);
         });
 
+        // Hardcoded cuz lazy
+        let short_mask: simd::Mask<i8, 4> = simd::Mask::<i8, 4>::from_array([
+            true, true, true, false
+        ]);
+        let short_or: u8x4 = u8x4::from_array([
+            $or[0], $or[1], $or[2], $or[3]
+        ]);
         (end..$src.len()).step_by(4).for_each(|i| {
-            let (a, b, c) = ($src[i + 0], $src[i + 1], $src[i + 2]);
-            $dst[i + 0] = a;
-            $dst[i + 1] = b;
-            $dst[i + 2] = c;
-            $dst[i + 3] = 255;
+            u8x4::load_select(&$src[i..i + 4], short_mask, short_or)
+                .copy_to_slice(&mut $dst[i..i + 4]);
         });
     };
 }
@@ -120,12 +123,18 @@ macro_rules! apply_x_mask_and_swizzle_4_wide {
             .copy_to_slice(&mut $dst[i..i + VECTOR_WIDTH]);
         });
 
+        let short_mask: simd::Mask<i8, 4> = simd::Mask::<i8, 4>::from_array([
+            true, true, true, false
+        ]);
+        let short_or: u8x4 = u8x4::from_array([
+            $or[0], $or[1], $or[2], $or[3]
+        ]);
+        const SHORT_IDXS: [usize; 4] = [$idxs[0], $idxs[1], $idxs[2], $idxs[3]];
         (end..$src.len()).step_by(4).for_each(|i| {
-            let (a, b, c) = ($src[i + 0], $src[i + 1], $src[i + 2]);
-            $dst[i + $idxs[0]] = a;
-            $dst[i + $idxs[1]] = b;
-            $dst[i + $idxs[2]] = c;
-            $dst[i + $idxs[3]] = 255;
+            simd_swizzle!(
+                u8x4::load_select(&$src[i..i + 4], short_mask, short_or),
+                SHORT_IDXS
+            ).copy_to_slice(&mut $dst[i..i + 4]);
         });
     };
 }
