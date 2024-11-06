@@ -48,18 +48,6 @@ const RGBA_TO_BGRA_SWIZZLE_IDXS: [usize; VECTOR_WIDTH] = idx_order!(2, 1, 0, 3);
 const RGBA_TO_BGRA_SWIZZLE_IDXS_SHORT: [usize; 4] = [2, 1, 0, 3];
 const BGRA_TO_RGBA_SWIZZLE_IDXS: [usize; VECTOR_WIDTH] = idx_order!(2, 1, 0, 3);
 const BGRA_TO_RGBA_SWIZZLE_IDXS_SHORT: [usize; 4] = [2, 1, 0, 3];
-lazy_static! {
-    #[rustfmt::skip]
-    static ref XXX0_TO_XXXX_MASK: simd::Mask<i8, 16> = simd::Mask::<i8, 16>::from_array([
-        true, true, true, false,
-        true, true, true, false,
-        true, true, true, false,
-        true, true, true, false,
-    ]);
-    static ref XXX0_TO_XXXX_MASK_SHORT: simd::Mask<i8, 4> = simd::Mask::<i8, 4>::from_array([
-        true, true, true, false,
-    ]);
-}
 #[rustfmt::skip]
 const XXX0_TO_XXXX_OR: u8x16 = u8x16::from_array([
     0u8, 0u8, 0u8, 255u8,
@@ -107,10 +95,21 @@ macro_rules! apply_x_mask_and_swizzle_4_wide {
     ($src:expr, $dst:expr, $or:expr, $or_short:expr, $idxs:expr, $idxs_short:expr) => {
         assert!($src.len() % 4 == 0 && $src.len() == $dst.len());
 
+        #[rustfmt::skip]
+        let mask = simd::Mask::<i8, 16>::from_array([
+            true, true, true, false,
+            true, true, true, false,
+            true, true, true, false,
+            true, true, true, false,
+        ]);
+        let mask_short = simd::Mask::<i8, 4>::from_array([
+            true, true, true, false,
+        ]);
+
         let end = ($src.len() / VECTOR_WIDTH) * VECTOR_WIDTH;
         (0..end).step_by(VECTOR_WIDTH).for_each(|i| {
             simd_swizzle!(
-                u8x16::load_select(&$src[i..i + VECTOR_WIDTH], *XXX0_TO_XXXX_MASK, $or),
+                u8x16::load_select(&$src[i..i + VECTOR_WIDTH], mask, $or),
                 $idxs
             )
             .copy_to_slice(&mut $dst[i..i + VECTOR_WIDTH]);
@@ -118,7 +117,7 @@ macro_rules! apply_x_mask_and_swizzle_4_wide {
 
         (end..$src.len()).step_by(4).for_each(|i| {
             simd_swizzle!(
-                u8x4::load_select(&$src[i..i + 4], *XXX0_TO_XXXX_MASK_SHORT, $or_short),
+                u8x4::load_select(&$src[i..i + 4], mask_short, $or_short),
                 $idxs_short
             )
             .copy_to_slice(&mut $dst[i..i + 4]);
@@ -259,11 +258,22 @@ pub fn bgra_to_rgba(src: &[u8], dst: &mut [u8]) {
 /// Panics if `src.len` is not multiple of a 4.
 #[inline]
 pub fn rgb0_to_rgbx_inplace(src: &mut [u8]) {
+    #[rustfmt::skip]
+    let mask = simd::Mask::<i8, 16>::from_array([
+        true, true, true, false,
+        true, true, true, false,
+        true, true, true, false,
+        true, true, true, false,
+    ]);
+    let mask_short = simd::Mask::<i8, 4>::from_array([
+        true, true, true, false,
+    ]);
+
     apply_mask_4_wide!(
         src,
         src,
-        *XXX0_TO_XXXX_MASK,
-        *XXX0_TO_XXXX_MASK_SHORT,
+        mask,
+        mask_short,
         XXX0_TO_XXXX_OR,
         XXX0_TO_XXXX_OR_SHORT
     );
@@ -282,11 +292,22 @@ pub fn rgb0_to_rgbx_inplace(src: &mut [u8]) {
 /// Panics if `src.len` is not multiple of a 4 or if `dst.len` is not equal to `src.len`.
 #[inline]
 pub fn rgb0_to_rgbx(src: &[u8], dst: &mut [u8]) {
+    #[rustfmt::skip]
+    let mask = simd::Mask::<i8, 16>::from_array([
+        true, true, true, false,
+        true, true, true, false,
+        true, true, true, false,
+        true, true, true, false,
+    ]);
+    let mask_short = simd::Mask::<i8, 4>::from_array([
+        true, true, true, false,
+    ]);
+
     apply_mask_4_wide!(
         src,
         dst,
-        *XXX0_TO_XXXX_MASK,
-        *XXX0_TO_XXXX_MASK_SHORT,
+        mask,
+        mask_short,
         XXX0_TO_XXXX_OR,
         XXX0_TO_XXXX_OR_SHORT
     );
@@ -304,11 +325,22 @@ pub fn rgb0_to_rgbx(src: &[u8], dst: &mut [u8]) {
 /// Panics if `src.len` is not multiple of a 4.
 #[inline]
 pub fn bgr0_to_bgrx_inplace(src: &mut [u8]) {
+    #[rustfmt::skip]
+    let mask = simd::Mask::<i8, 16>::from_array([
+        true, true, true, false,
+        true, true, true, false,
+        true, true, true, false,
+        true, true, true, false,
+    ]);
+    let mask_short = simd::Mask::<i8, 4>::from_array([
+        true, true, true, false,
+    ]);
+
     apply_mask_4_wide!(
         src,
         src,
-        *XXX0_TO_XXXX_MASK,
-        *XXX0_TO_XXXX_MASK_SHORT,
+        mask,
+        mask_short,
         XXX0_TO_XXXX_OR,
         XXX0_TO_XXXX_OR_SHORT
     );
@@ -327,11 +359,22 @@ pub fn bgr0_to_bgrx_inplace(src: &mut [u8]) {
 /// Panics if `src.len` is not multiple of a 4 or if `dst.len` is not equal to `src.len`.
 #[inline]
 pub fn bgr0_to_bgrx(src: &[u8], dst: &mut [u8]) {
+    #[rustfmt::skip]
+    let mask = simd::Mask::<i8, 16>::from_array([
+        true, true, true, false,
+        true, true, true, false,
+        true, true, true, false,
+        true, true, true, false,
+    ]);
+    let mask_short = simd::Mask::<i8, 4>::from_array([
+        true, true, true, false,
+    ]);
+
     apply_mask_4_wide!(
         src,
         dst,
-        *XXX0_TO_XXXX_MASK,
-        *XXX0_TO_XXXX_MASK_SHORT,
+        mask,
+        mask_short,
         XXX0_TO_XXXX_OR,
         XXX0_TO_XXXX_OR_SHORT
     );

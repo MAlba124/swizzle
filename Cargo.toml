@@ -10,4 +10,3 @@ edition = "2021"
 license = "MIT"
 
 [dependencies]
-lazy_static = "1.5.0"
