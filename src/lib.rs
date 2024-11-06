@@ -89,7 +89,7 @@ macro_rules! apply_mask_4_wide {
 
         let end = ($src.len() / VECTOR_WIDTH) * VECTOR_WIDTH;
         (0..end).step_by(VECTOR_WIDTH).for_each(|i| {
-            u8x16::load_select(&$src[i..i + VECTOR_WIDTH], $mask, XXX0_TO_XXXX_OR)
+            u8x16::load_select(&$src[i..i + VECTOR_WIDTH], $mask, $or)
                 .copy_to_slice(&mut $dst[i..i + VECTOR_WIDTH]);
         });
 
