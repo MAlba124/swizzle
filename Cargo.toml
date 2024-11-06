@@ -7,7 +7,7 @@ readme = "README.md"
 authors = ["Marcus Lian Hanestad <marlhan@proton.me>"]
 version = "0.1.0"
 edition = "2021"
-license-file = "LICENSE"
+license = "MIT"
 
 [dependencies]
 lazy_static = "1.5.0"
