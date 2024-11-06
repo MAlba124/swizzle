@@ -28,8 +28,6 @@ extern crate test;
 
 use std::simd::{self, simd_swizzle, u8x16, u8x4};
 
-use lazy_static::lazy_static;
-
 #[rustfmt::skip]
 macro_rules! idx_order {
     ($a:expr, $b:expr, $c:expr, $d:expr) => {
