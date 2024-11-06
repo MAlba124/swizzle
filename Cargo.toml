@@ -10,3 +10,11 @@ edition = "2021"
 license = "MIT"
 
 [dependencies]
+
+[build-dependencies]
+rustversion = "1.0.18"
+
+# Dev only
+[features]
+default = ["nightly"]
+nightly = []
