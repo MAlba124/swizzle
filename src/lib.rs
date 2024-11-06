@@ -26,7 +26,7 @@
 
 extern crate test;
 
-use std::simd::{self, simd_swizzle, u8x64};
+use std::simd::{self, simd_swizzle, u8x16};
 
 use lazy_static::lazy_static;
 
@@ -38,47 +38,17 @@ macro_rules! idx_order {
             $a + (4 * 1), $b + (4 * 1), $c + (4 * 1), $d + (4 * 1),
             $a + (4 * 2), $b + (4 * 2), $c + (4 * 2), $d + (4 * 2),
             $a + (4 * 3), $b + (4 * 3), $c + (4 * 3), $d + (4 * 3),
-
-            $a + (4 * 4), $b + (4 * 4), $c + (4 * 4), $d + (4 * 4),
-            $a + (4 * 5), $b + (4 * 5), $c + (4 * 5), $d + (4 * 5),
-            $a + (4 * 6), $b + (4 * 6), $c + (4 * 6), $d + (4 * 6),
-            $a + (4 * 7), $b + (4 * 7), $c + (4 * 7), $d + (4 * 7),
-
-            $a + (4 * 8), $b + (4 * 8), $c + (4 * 8), $d + (4 * 8),
-            $a + (4 * 9), $b + (4 * 9), $c + (4 * 9), $d + (4 * 9),
-            $a + (4 * 10), $b + (4 * 10), $c + (4 * 10), $d + (4 * 10),
-            $a + (4 * 11), $b + (4 * 11), $c + (4 * 11), $d + (4 * 11),
-
-            $a + (4 * 12), $b + (4 * 12), $c + (4 * 12), $d + (4 * 12),
-            $a + (4 * 13), $b + (4 * 13), $c + (4 * 13), $d + (4 * 13),
-            $a + (4 * 14), $b + (4 * 14), $c + (4 * 14), $d + (4 * 14),
-            $a + (4 * 15), $b + (4 * 15), $c + (4 * 15), $d + (4 * 15),
         ]
     }
 }
 
-const VECTOR_WIDTH: usize = 16 * 4;
+const VECTOR_WIDTH: usize = 16;
 const SERIAL_BATCH_WIDTH: usize = 16;
 const RGBA_TO_BGRA_SWIZZLE_IDXS: [usize; VECTOR_WIDTH] = idx_order!(2, 1, 0, 3);
 const BGRA_TO_RGBA_SWIZZLE_IDXS: [usize; VECTOR_WIDTH] = idx_order!(2, 1, 0, 3);
 lazy_static! {
     #[rustfmt::skip]
-    static ref XXX0_TO_XXXX_MASK: simd::Mask<i8, 64> = simd::Mask::<i8, 64>::from_array([
-        true, true, true, false,
-        true, true, true, false,
-        true, true, true, false,
-        true, true, true, false,
-
-        true, true, true, false,
-        true, true, true, false,
-        true, true, true, false,
-        true, true, true, false,
-
-        true, true, true, false,
-        true, true, true, false,
-        true, true, true, false,
-        true, true, true, false,
-
+    static ref XXX0_TO_XXXX_MASK: simd::Mask<i8, 16> = simd::Mask::<i8, 16>::from_array([
         true, true, true, false,
         true, true, true, false,
         true, true, true, false,
@@ -86,29 +56,12 @@ lazy_static! {
     ]);
 }
 #[rustfmt::skip]
-const XXX0_TO_XXXX_OR: u8x64 = u8x64::from_array([
-    0u8, 0u8, 0u8, 255u8,
-    0u8, 0u8, 0u8, 255u8,
-    0u8, 0u8, 0u8, 255u8,
-    0u8, 0u8, 0u8, 255u8,
-
-    0u8, 0u8, 0u8, 255u8,
-    0u8, 0u8, 0u8, 255u8,
-    0u8, 0u8, 0u8, 255u8,
-    0u8, 0u8, 0u8, 255u8,
-
-    0u8, 0u8, 0u8, 255u8,
-    0u8, 0u8, 0u8, 255u8,
-    0u8, 0u8, 0u8, 255u8,
-    0u8, 0u8, 0u8, 255u8,
-
+const XXX0_TO_XXXX_OR: u8x16 = u8x16::from_array([
     0u8, 0u8, 0u8, 255u8,
     0u8, 0u8, 0u8, 255u8,
     0u8, 0u8, 0u8, 255u8,
     0u8, 0u8, 0u8, 255u8,
 ]);
-
-// NOTE: Loading vector is slow. need 2 optimize
 
 macro_rules! swizzle_4_wide {
     ($src:expr, $dst:expr, $idxs:expr) => {
@@ -116,7 +69,7 @@ macro_rules! swizzle_4_wide {
 
         let end = ($src.len() / VECTOR_WIDTH) * VECTOR_WIDTH;
         (0..end).step_by(VECTOR_WIDTH).for_each(|i| {
-            simd_swizzle!(u8x64::from_slice(&$src[i..i + VECTOR_WIDTH]), $idxs)
+            simd_swizzle!(u8x16::from_slice(&$src[i..i + VECTOR_WIDTH]), $idxs)
                 .copy_to_slice(&mut $dst[i..i + VECTOR_WIDTH]);
         });
 
@@ -136,7 +89,7 @@ macro_rules! apply_mask_4_wide {
 
         let end = ($src.len() / VECTOR_WIDTH) * VECTOR_WIDTH;
         (0..end).step_by(VECTOR_WIDTH).for_each(|i| {
-            u8x64::load_select(&$src[i..i + VECTOR_WIDTH], $mask, XXX0_TO_XXXX_OR)
+            u8x16::load_select(&$src[i..i + VECTOR_WIDTH], $mask, XXX0_TO_XXXX_OR)
                 .copy_to_slice(&mut $dst[i..i + VECTOR_WIDTH]);
         });
 
@@ -157,7 +110,7 @@ macro_rules! apply_x_mask_and_swizzle_4_wide {
         let end = ($src.len() / VECTOR_WIDTH) * VECTOR_WIDTH;
         (0..end).step_by(VECTOR_WIDTH).for_each(|i| {
             simd_swizzle!(
-                u8x64::load_select(
+                u8x16::load_select(
                     &$src[i..i + VECTOR_WIDTH],
                     *XXX0_TO_XXXX_MASK,
                     XXX0_TO_XXXX_OR
