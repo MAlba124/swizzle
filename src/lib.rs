@@ -113,7 +113,7 @@ macro_rules! apply_x_mask_and_swizzle_4_wide {
                 u8x16::load_select(
                     &$src[i..i + VECTOR_WIDTH],
                     *XXX0_TO_XXXX_MASK,
-                    XXX0_TO_XXXX_OR
+                    $or
                 ),
                 $idxs
             )
@@ -292,7 +292,7 @@ pub fn bgr0_to_bgrx(src: &[u8], dst: &mut [u8]) {
 /// Panics if `src.len` is not multiple of a 4.
 #[inline]
 pub fn rgb0_to_bgrx_inplace(src: &mut [u8]) {
-    apply_x_mask_and_swizzle_4_wide!(src, src, XXX0_TO_XXX_OR, RGBA_TO_BGRA_SWIZZLE_IDXS);
+    apply_x_mask_and_swizzle_4_wide!(src, src, XXX0_TO_XXXX_OR, RGBA_TO_BGRA_SWIZZLE_IDXS);
 }
 
 /// Convert RGB0 data to BGRX and store the result to `dst`.
