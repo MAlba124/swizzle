@@ -30,8 +30,6 @@ use std::simd::{self, simd_swizzle, u8x64};
 
 use lazy_static::lazy_static;
 
-const VECTOR_WIDTH: usize = 16 * 4;
-
 #[rustfmt::skip]
 macro_rules! idx_order {
     ($a:expr, $b:expr, $c:expr, $d:expr) => {
@@ -59,6 +57,8 @@ macro_rules! idx_order {
     }
 }
 
+const VECTOR_WIDTH: usize = 16 * 4;
+const SERIAL_BATCH_WIDTH: usize = 16;
 const RGBA_TO_BGRA_SWIZZLE_IDXS: [usize; VECTOR_WIDTH] = idx_order!(2, 1, 0, 3);
 const BGRA_TO_RGBA_SWIZZLE_IDXS: [usize; VECTOR_WIDTH] = idx_order!(2, 1, 0, 3);
 lazy_static! {
@@ -177,31 +177,30 @@ macro_rules! apply_x_mask_and_swizzle_4_wide {
     };
 }
 
-#[allow(dead_code)]
-#[inline]
-fn serial_swizzle_4_wide_inplace(src: &mut [u8], idxs: &[usize; 4]) {
-    assert!(src.len() % 4 == 0);
+macro_rules! serial_swizzle_4_wide {
+    ($src:expr, $dst:expr, $idxs:expr) => {
+        assert!($src.len() % 4 == 0 && $src.len() == $dst.len() && $idxs.len() == 4);
 
-    (0..src.len()).step_by(4).for_each(|i| {
-        let (a, b, c, d) = (src[i], src[i + 1], src[i + 2], src[i + 3]);
-        src[i + idxs[0]] = a;
-        src[i + idxs[1]] = b;
-        src[i + idxs[2]] = c;
-        src[i + idxs[3]] = d;
-    });
-}
+        let end = ($src.len() / SERIAL_BATCH_WIDTH) * SERIAL_BATCH_WIDTH;
+        (0..end).step_by(SERIAL_BATCH_WIDTH).for_each(|i| {
+            let vec = &$src[i..i + SERIAL_BATCH_WIDTH];
+            let swizzled = &[ // Hardcoded SERIAL_BATCH_WIDTH = 16
+                vec[$idxs[0]], vec[$idxs[1]], vec[$idxs[2]], vec[$idxs[3]],
+                vec[$idxs[0] + 4], vec[$idxs[1] + 4], vec[$idxs[2] + 4], vec[$idxs[3] + 4],
+                vec[$idxs[0] + 8], vec[$idxs[1] + 8], vec[$idxs[2] + 8], vec[$idxs[3] + 8],
+                vec[$idxs[0] + 12], vec[$idxs[1] + 12], vec[$idxs[2] + 12], vec[$idxs[3] + 12],
+            ];
+            $dst[i..i + SERIAL_BATCH_WIDTH].copy_from_slice(swizzled);
+        });
 
-#[allow(dead_code)]
-#[inline]
-fn serial_swizzle_4_wide(src: &[u8], dst: &mut [u8], idxs: &[usize; 4]) {
-    assert!(src.len() % 4 == 0);
-
-    (0..src.len()).step_by(4).for_each(|i| {
-        dst[i + idxs[0]] = src[i];
-        dst[i + idxs[1]] = src[i + 1];
-        dst[i + idxs[2]] = src[i + 2];
-        dst[i + idxs[3]] = src[i + 3];
-    });
+        (end..$src.len()).step_by(4).for_each(|i| {
+            let (a, b, c, d) = ($src[i + 0], $src[i + 1], $src[i + 2], $src[i + 3]);
+            $dst[i + $idxs[0]] = a;
+            $dst[i + $idxs[1]] = b;
+            $dst[i + $idxs[2]] = c;
+            $dst[i + $idxs[3]] = d;
+        });
+    };
 }
 
 /// Convert RGBA data to BGRA while overwriting the old RGBA data in `src`.
@@ -490,17 +489,17 @@ mod tests {
         let (width, height) = (1920, 1080);
         let mut rgba_img = generate_xxxx_image(width, height, 111, 222, 100, 255);
         let correct_bgra = generate_xxxx_image(width, height, 100, 222, 111, 255);
-        serial_swizzle_4_wide_inplace(&mut rgba_img, &[2, 1, 0, 3]);
+        serial_swizzle_4_wide!(&rgba_img, &mut rgba_img, &[2, 1, 0, 3]);
         assert_eq!(rgba_img, correct_bgra);
     }
 
     #[test]
     fn test_serial_rgba_to_bgra() {
-        let (width, height) = (1920, 1080);
+        let (width, height) = (1920, 1080); // ASD
         let rgba_img = generate_xxxx_image(width, height, 111, 222, 100, 255);
         let correct_bgra = generate_xxxx_image(width, height, 100, 222, 111, 255);
         let mut bgra = vec![0; width * height * 4];
-        serial_swizzle_4_wide(&rgba_img, &mut bgra, &[2, 1, 0, 3]);
+        serial_swizzle_4_wide!(&rgba_img, &mut bgra, &[2, 1, 0, 3]);
         assert_eq!(bgra, correct_bgra);
     }
 
@@ -589,7 +588,7 @@ mod tests {
         let mut bgra = vec![0; width * height * 4];
         let idxs = [2, 1, 0, 3];
         b.iter(|| {
-            serial_swizzle_4_wide(&rgba, &mut bgra, &idxs);
+            serial_swizzle_4_wide!(&rgba, &mut bgra, &idxs);
         });
     }
 
@@ -599,7 +598,7 @@ mod tests {
         let mut rgba = generate_xxxx_image(width, height, 111, 222, 100, 255);
         let idxs = [2, 1, 0, 3];
         b.iter(|| {
-            serial_swizzle_4_wide_inplace(&mut rgba, &idxs);
+            serial_swizzle_4_wide!(&rgba, &mut rgba, &idxs);
         });
     }
 
@@ -629,7 +628,7 @@ mod tests {
         let mut bgra = vec![0; width * height * 4];
         let idxs = [2, 1, 0, 3];
         b.iter(|| {
-            serial_swizzle_4_wide(&rgba, &mut bgra, &idxs);
+            serial_swizzle_4_wide!(&rgba, &mut bgra, &idxs);
         });
     }
 
@@ -639,7 +638,7 @@ mod tests {
         let mut rgba = generate_xxxx_image(width, height, 111, 222, 100, 255);
         let idxs = [2, 1, 0, 3];
         b.iter(|| {
-            serial_swizzle_4_wide_inplace(&mut rgba, &idxs);
+            serial_swizzle_4_wide!(&rgba, &mut rgba, &idxs);
         });
     }
 
