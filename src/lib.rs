@@ -17,18 +17,19 @@
 // IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-//! SIMD accelerated image swizzling routines
+//! SIMD accelerated image swizzling routines.
+//!
+//! SIMD is only used on nightly, otherwise, slower implementaions are used.
 
 // TODO: Do conversion depending on system endianess
-// TODO: Add simd as feature
-// TODO: Use criterion for benchmarking
 
 #![cfg_attr(feature = "nightly", feature(portable_simd))]
 
 #[cfg(feature = "nightly")]
-mod simd;
+pub mod simd;
+
 #[cfg(not(feature = "nightly"))]
-mod sisd;
+pub mod sisd;
 
 pub(crate) mod common;
 

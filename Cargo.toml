@@ -14,7 +14,14 @@ license = "MIT"
 [build-dependencies]
 rustversion = "1.0.18"
 
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "rgba_to_bgra"
+harness = false
+
 # Dev only
-[features]
-default = ["nightly"]
-nightly = []
+# [features]
+# default = ["nightly"]
+# nightly = []
