@@ -31,11 +31,11 @@ macro_rules! swizzle_4_wide {
 
 macro_rules! change_alpha_fourth {
     ($src:expr, $dst:expr, $to:expr) => {
-        assert!($src.len() % 4 == 0 && $src.len() == $dst.len() && $idxs.len() == 4);
+        assert!($src.len() % 4 == 0 && $src.len() == $dst.len());
         (0..$src.len()).step_by(4).for_each(|i| {
-            $dst[i] = src[i];
-            $dst[i + 1] = src[i + 1];
-            $dst[i + 2] = src[i + 2];
+            $dst[i] = $src[i];
+            $dst[i + 1] = $src[i + 1];
+            $dst[i + 2] = $src[i + 2];
             $dst[i + 3] = $to;
         })
     };
@@ -45,9 +45,10 @@ macro_rules! change_alpha_fourth_and_swizzle {
     ($src:expr, $dst:expr, $to:expr, $idxs:expr) => {
         assert!($src.len() % 4 == 0 && $src.len() == $dst.len() && $idxs.len() == 4);
         (0..$src.len()).step_by(4).for_each(|i| {
-            $dst[i + $idxs[0]] = src[i];
-            $dst[i + $idxs[1]] = src[i + 1];
-            $dst[i + $idxs[2]] = src[i + 2];
+            let (a, b, c) = ($src[i + 0], $src[i + 1], $src[i + 2]);
+            $dst[i + $idxs[0]] = a;
+            $dst[i + $idxs[1]] = b;
+            $dst[i + $idxs[2]] = c;
             $dst[i + $idxs[3]] = $to;
         })
     };
@@ -55,46 +56,62 @@ macro_rules! change_alpha_fourth_and_swizzle {
 
 #[inline(always)]
 pub fn rgba_to_bgra_inplace(src: &mut [u8]) {
+    swizzle_4_wide!(src, src, [2, 1, 0, 3]);
 }
 
 #[inline(always)]
 pub fn rgba_to_bgra(src: &[u8], dst: &mut [u8]) {
+    swizzle_4_wide!(src, dst, [2, 1, 0, 3]);
 }
 
 #[inline(always)]
 pub fn bgra_to_rgba_inplace(src: &mut [u8]) {
+    swizzle_4_wide!(src, src, [2, 1, 0, 3]);
 }
 
 #[inline(always)]
 pub fn bgra_to_rgba(src: &[u8], dst: &mut [u8]) {
+    swizzle_4_wide!(src, dst, [2, 1, 0, 3]);
+}
+
+#[inline(always)]
+pub fn rgb0_to_rgbx_inplace(src: &mut [u8]) {
+    change_alpha_fourth!(src, src, 255);
 }
 
 #[inline(always)]
 pub fn rgb0_to_rgbx(src: &[u8], dst: &mut [u8]) {
+    change_alpha_fourth!(src, dst, 255);
 }
 
 #[inline(always)]
 pub fn bgr0_to_bgrx_inplace(src: &mut [u8]) {
+    change_alpha_fourth!(src, src, 255);
 }
 
 #[inline(always)]
 pub fn bgr0_to_bgrx(src: &[u8], dst: &mut [u8]) {
+    change_alpha_fourth!(src, dst, 255);
 }
 
 #[inline(always)]
 pub fn rgb0_to_bgrx_inplace(src: &mut [u8]) {
+    change_alpha_fourth_and_swizzle!(src, src, 255, [2, 1, 0, 3]);
 }
 
 #[inline(always)]
 pub fn rgb0_to_bgrx(src: &[u8], dst: &mut [u8]) {
+    change_alpha_fourth_and_swizzle!(src, dst, 255, [2, 1, 0, 3]);
 }
 
 #[inline(always)]
 pub fn bgr0_to_rgbx_inplace(src: &mut [u8]) {
+    change_alpha_fourth_and_swizzle!(src, src, 255, [2, 1, 0, 3]);
 }
 
 #[inline(always)]
 pub fn bgr0_to_rgbx(src: &[u8], dst: &mut [u8]) {
+    change_alpha_fourth_and_swizzle!(src, dst, 255, [2, 1, 0, 3]);
 }
 
 
