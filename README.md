@@ -1,3 +1,6 @@
+[![Latest release](https://img.shields.io/crates/v/image_swizzle)](https://crates.io/crates/image_swizzle)
+[![Docs](https://docs.rs/image_swizzle/badge.svg)](https://docs.rs/image_swizzle)
+
 # Swizzle
 
 SIMD accelerated image swizzling routines.
