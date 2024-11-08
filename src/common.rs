@@ -1,3 +1,4 @@
+#[allow(unused_macros)]
 macro_rules! impl_tests {
     () => {
         fn generate_xxxx_image(width: usize, height: usize, x1: u8, x2: u8, x3: u8, x4: u8) -> Vec<u8> {
@@ -181,4 +182,5 @@ macro_rules! impl_tests {
     }
 }
 
+#[allow(unused_imports)]
 pub(crate) use impl_tests;

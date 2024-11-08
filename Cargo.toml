@@ -26,6 +26,6 @@ name = "rgba_to_bgra"
 harness = false
 
 # Dev only
-# [features]
-# default = ["nightly"]
-# nightly = []
+[features]
+default = []
+nightly = []
