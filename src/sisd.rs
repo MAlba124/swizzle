@@ -65,6 +65,20 @@ pub fn rgba_to_bgra(src: &[u8], dst: &mut [u8]) {
 }
 
 #[inline(always)]
+pub fn rgba32_to_bgra_inplace(src: &mut [u8]) {
+    #[cfg(target_endian = "little")]
+    swizzle_4_wide!(src, src, [1, 2, 3, 0]);
+    #[cfg(target_endian = "big")]
+    swizzle_4_wide!(src, src, [2, 1, 0, 3]);
+}
+
+#[inline(always)]
+pub fn rgba32_to_rgba_inplace(src: &mut [u8]) {
+    #[cfg(target_endian = "little")]
+    swizzle_4_wide!(src, src, [3, 2, 1, 0]);
+}
+
+#[inline(always)]
 pub fn bgra_to_rgba_inplace(src: &mut [u8]) {
     swizzle_4_wide!(src, src, [2, 1, 0, 3]);
 }

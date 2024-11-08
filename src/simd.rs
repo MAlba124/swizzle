@@ -15,6 +15,16 @@ macro_rules! idx_order {
 const VECTOR_WIDTH: usize = 16;
 const RGBA_TO_BGRA_SWIZZLE_IDXS: [usize; VECTOR_WIDTH] = idx_order!(2, 1, 0, 3);
 const RGBA_TO_BGRA_SWIZZLE_IDXS_SHORT: [usize; 4] = [2, 1, 0, 3];
+
+#[cfg(target_endian = "little")]
+const RGBA32_TO_BGRA_SWIZZLE_IDXS: [usize; VECTOR_WIDTH] = idx_order!(1, 2, 3, 0);
+#[cfg(target_endian = "little")]
+const RGBA32_TO_BGRA_SWIZZLE_IDXS_SHORT: [usize; 4] = [1, 2, 3, 0];
+#[cfg(target_endian = "little")]
+const RGBA32_TO_RGBA_SWIZZLE_IDXS: [usize; VECTOR_WIDTH] = idx_order!(3, 2, 1, 0);
+#[cfg(target_endian = "little")]
+const RGBA32_TO_RGBA_SWIZZLE_IDXS_SHORT: [usize; 4] = [3, 2, 1, 0];
+
 const BGRA_TO_RGBA_SWIZZLE_IDXS: [usize; VECTOR_WIDTH] = idx_order!(2, 1, 0, 3);
 const BGRA_TO_RGBA_SWIZZLE_IDXS_SHORT: [usize; 4] = [2, 1, 0, 3];
 #[rustfmt::skip]
@@ -62,7 +72,6 @@ macro_rules! apply_mask_4_wide {
 
 macro_rules! apply_x_mask_and_swizzle_4_wide {
     ($src:expr, $dst:expr, $or:expr, $or_short:expr, $idxs:expr, $idxs_short:expr) => {
-        println!("assert!({} % 4 == 0 && {} == {});", $src.len(), $src.len(), $dst.len());
         assert!($src.len() % 4 == 0 && $src.len() == $dst.len());
 
         #[rustfmt::skip]
@@ -72,9 +81,7 @@ macro_rules! apply_x_mask_and_swizzle_4_wide {
             true, true, true, false,
             true, true, true, false,
         ]);
-        let mask_short = simd::Mask::<i8, 4>::from_array([
-            true, true, true, false,
-        ]);
+        let mask_short = simd::Mask::<i8, 4>::from_array([true, true, true, false]);
 
         let end = ($src.len() / VECTOR_WIDTH) * VECTOR_WIDTH;
         (0..end).step_by(VECTOR_WIDTH).for_each(|i| {
@@ -95,7 +102,6 @@ macro_rules! apply_x_mask_and_swizzle_4_wide {
     };
 }
 
-
 #[inline(always)]
 pub fn rgba_to_bgra_inplace(src: &mut [u8]) {
     swizzle_4_wide!(
@@ -114,6 +120,43 @@ pub fn rgba_to_bgra(src: &[u8], dst: &mut [u8]) {
         RGBA_TO_BGRA_SWIZZLE_IDXS,
         RGBA_TO_BGRA_SWIZZLE_IDXS_SHORT
     );
+}
+
+#[inline(always)]
+pub fn rgba32_to_bgra_inplace(src: &mut [u8]) {
+    #[cfg(target_endian = "little")]
+    {
+        println!("{:?}", RGBA32_TO_BGRA_SWIZZLE_IDXS);
+        println!("{:?}", RGBA32_TO_BGRA_SWIZZLE_IDXS_SHORT);
+        swizzle_4_wide!(
+            src,
+            src,
+            RGBA32_TO_BGRA_SWIZZLE_IDXS,
+            RGBA32_TO_BGRA_SWIZZLE_IDXS_SHORT
+        );
+    }
+    #[cfg(target_endian = "big")]
+    {
+        swizzle_4_wide!(
+            src,
+            src,
+            RGBA_TO_BGRA_SWIZZLE_IDXS,
+            RGBA_TO_BGRA_SWIZZLE_IDXS_SHORT
+        );
+    }
+}
+
+#[inline(always)]
+pub fn rgba32_to_rgba_inplace(src: &mut [u8]) {
+    #[cfg(target_endian = "little")]
+    {
+        swizzle_4_wide!(
+            src,
+            src,
+            RGBA32_TO_RGBA_SWIZZLE_IDXS,
+            RGBA32_TO_RGBA_SWIZZLE_IDXS_SHORT
+        );
+    }
 }
 
 #[inline(always)]
@@ -145,9 +188,7 @@ pub fn rgb0_to_rgbx_inplace(src: &mut [u8]) {
         true, true, true, false,
         true, true, true, false,
     ]);
-    let mask_short = simd::Mask::<i8, 4>::from_array([
-        true, true, true, false,
-    ]);
+    let mask_short = simd::Mask::<i8, 4>::from_array([true, true, true, false]);
     apply_mask_4_wide!(
         src,
         src,
@@ -167,9 +208,7 @@ pub fn rgb0_to_rgbx(src: &[u8], dst: &mut [u8]) {
         true, true, true, false,
         true, true, true, false,
     ]);
-    let mask_short = simd::Mask::<i8, 4>::from_array([
-        true, true, true, false,
-    ]);
+    let mask_short = simd::Mask::<i8, 4>::from_array([true, true, true, false]);
     apply_mask_4_wide!(
         src,
         dst,
@@ -189,9 +228,7 @@ pub fn bgr0_to_bgrx_inplace(src: &mut [u8]) {
         true, true, true, false,
         true, true, true, false,
     ]);
-    let mask_short = simd::Mask::<i8, 4>::from_array([
-        true, true, true, false,
-    ]);
+    let mask_short = simd::Mask::<i8, 4>::from_array([true, true, true, false]);
     apply_mask_4_wide!(
         src,
         src,
@@ -211,9 +248,7 @@ pub fn bgr0_to_bgrx(src: &[u8], dst: &mut [u8]) {
         true, true, true, false,
         true, true, true, false,
     ]);
-    let mask_short = simd::Mask::<i8, 4>::from_array([
-        true, true, true, false,
-    ]);
+    let mask_short = simd::Mask::<i8, 4>::from_array([true, true, true, false]);
     apply_mask_4_wide!(
         src,
         dst,
@@ -272,10 +307,9 @@ pub fn bgr0_to_rgbx(src: &[u8], dst: &mut [u8]) {
     );
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    crate::common::impl_tests!{}
+    crate::common::impl_tests! {}
 }

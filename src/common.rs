@@ -40,6 +40,30 @@ macro_rules! impl_tests {
         }
 
         #[test]
+        fn test_rgba32_to_rgba_inplace() {
+            let (width, height) = (10, 10);
+            #[cfg(target_endian = "little")]
+            let mut rgba_img = generate_xxxx_image(width, height, 255, 222, 111, 0);
+            #[cfg(target_endian = "big")]
+            todo!();
+            let correct = generate_xxxx_image(width, height, 0, 111, 222, 255);
+            rgba32_to_rgba_inplace(&mut rgba_img);
+            assert_eq!(rgba_img, correct);
+        }
+
+        #[test]
+        fn test_rgba32_to_bgra_inplace() {
+            let (width, height) = (10, 10);
+            #[cfg(target_endian = "little")]
+            let mut rgba_img = generate_xxxx_image(width, height, 255, 222, 111, 0);
+            #[cfg(target_endian = "big")]
+            todo!();
+            let correct = generate_xxxx_image(width, height, 222, 111, 0, 255);
+            rgba32_to_bgra_inplace(&mut rgba_img);
+            assert_eq!(rgba_img, correct);
+        }
+
+        #[test]
         fn test_rgba_to_bgra() {
             let (width, height) = (1920, 1080);
             let rgba_img = generate_xxxx_image(width, height, 111, 222, 100, 255);

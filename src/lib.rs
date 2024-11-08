@@ -51,6 +51,22 @@ pub fn rgba_to_bgra_inplace(src: &mut [u8]) {
     sisd::rgba_to_bgra_inplace(src);
 }
 
+#[inline]
+pub fn rgba32_to_bgra_inplace(src: &mut [u8]) {
+    #[cfg(feature = "nightly")]
+    simd::rgba32_to_bgra_inplace(src);
+    #[cfg(not(feature = "nightly"))]
+    sisd::rgba32_to_bgra_inplace(src);
+}
+
+#[inline]
+pub fn rgba32_to_rgba_inplace(src: &mut [u8]) {
+    #[cfg(feature = "nightly")]
+    simd::rgba32_to_rgba_inplace(src);
+    #[cfg(not(feature = "nightly"))]
+    sisd::rgba32_to_rgba_inplace(src);
+}
+
 /// Convert RGBA data to BGRA and store the result to `dst`.
 ///
 /// ```rust
@@ -254,12 +270,6 @@ pub fn bgr0_to_rgbx(src: &[u8], dst: &mut [u8]) {
     #[cfg(not(feature = "nightly"))]
     sisd::bgr0_to_rgbx(src, dst);
 }
-
-// TODO:
-// pub fn rgb_to_rgbx(src: &mut [u8], dst: &mut [u8]) {}
-// pub fn rgb_to_bgrx(src: &mut [u8], dst: &mut [u8]) {}
-// pub fn bgr_to_rgbx(src: &mut [u8], dst: &mut [u8]) {}
-// pub fn bgr_to_bgrx(src: &mut [u8], dst: &mut [u8]) {}
 
 #[cfg(test)]
 mod tests {
