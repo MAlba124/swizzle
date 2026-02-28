@@ -128,6 +128,10 @@ pub fn bgr0_to_rgbx(src: &[u8], dst: &mut [u8]) {
     change_alpha_fourth_and_swizzle!(src, dst, 255, [2, 1, 0, 3]);
 }
 
+#[inline(always)]
+pub fn argb_to_rgba_inplace(src: &mut [u8]) {
+    swizzle_4_wide!(src, src, [1, 2, 3, 0]);
+}
 
 #[cfg(test)]
 mod tests {

@@ -271,6 +271,24 @@ pub fn bgr0_to_rgbx(src: &[u8], dst: &mut [u8]) {
     sisd::bgr0_to_rgbx(src, dst);
 }
 
+/// Convert ARGB data to RGBA while overwriting the old ARGB data in `src`.
+///
+/// ```rust
+/// use image_swizzle::bgr0_to_rgbx_inplace;
+/// let mut bgr0 = [3, 2, 1, 0];
+/// bgr0_to_rgbx_inplace(&mut bgr0);
+/// assert_eq!(bgr0, [1, 2, 3, 255]);
+/// ```
+///
+/// Panics if `src.len` is not multiple of a 4.
+#[inline]
+pub fn argb_to_rgba_inplace(src: &mut [u8]) {
+    #[cfg(feature = "nightly")]
+    simd::argb_to_rgba_inplace(src);
+    #[cfg(not(feature = "nightly"))]
+    sisd::argb_to_rgba_inplace(src);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

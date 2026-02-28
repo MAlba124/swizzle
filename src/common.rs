@@ -179,6 +179,16 @@ macro_rules! impl_tests {
             bgr0_to_rgbx(&bgr0_img, &mut rgbx);
             assert_eq!(rgbx, correct_rgbx);
         }
+
+        #[test]
+        fn test_argb_to_rgba_inplace() {
+            let (width, height) = (1920, 1080);
+            let (r, g, b, a) = (1, 2, 3, 4);
+            let mut argb = generate_xxxx_image(width, height, a, r, g, b);
+            let correct_rgba = generate_xxxx_image(width, height, r, g, b, a);
+            argb_to_rgba_inplace(&mut argb);
+            assert_eq!(argb, correct_rgba);
+        }
     }
 }
 

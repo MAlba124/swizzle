@@ -20,10 +20,14 @@ const RGBA_TO_BGRA_SWIZZLE_IDXS_SHORT: [usize; 4] = [2, 1, 0, 3];
 const RGBA32_TO_BGRA_SWIZZLE_IDXS: [usize; VECTOR_WIDTH] = idx_order!(1, 2, 3, 0);
 #[cfg(target_endian = "little")]
 const RGBA32_TO_BGRA_SWIZZLE_IDXS_SHORT: [usize; 4] = [1, 2, 3, 0];
+
 #[cfg(target_endian = "little")]
 const RGBA32_TO_RGBA_SWIZZLE_IDXS: [usize; VECTOR_WIDTH] = idx_order!(3, 2, 1, 0);
 #[cfg(target_endian = "little")]
 const RGBA32_TO_RGBA_SWIZZLE_IDXS_SHORT: [usize; 4] = [3, 2, 1, 0];
+
+const ARGB_TO_RGBA_SWIZZLE_IDXS: [usize; VECTOR_WIDTH] = idx_order!(1, 2, 3, 0);
+const ARGB_TO_RGBA_SWIZZLE_IDXS_SHORT: [usize; 4] = [1, 2, 3, 0];
 
 const BGRA_TO_RGBA_SWIZZLE_IDXS: [usize; VECTOR_WIDTH] = idx_order!(2, 1, 0, 3);
 const BGRA_TO_RGBA_SWIZZLE_IDXS_SHORT: [usize; 4] = [2, 1, 0, 3];
@@ -126,8 +130,6 @@ pub fn rgba_to_bgra(src: &[u8], dst: &mut [u8]) {
 pub fn rgba32_to_bgra_inplace(src: &mut [u8]) {
     #[cfg(target_endian = "little")]
     {
-        println!("{:?}", RGBA32_TO_BGRA_SWIZZLE_IDXS);
-        println!("{:?}", RGBA32_TO_BGRA_SWIZZLE_IDXS_SHORT);
         swizzle_4_wide!(
             src,
             src,
@@ -304,6 +306,16 @@ pub fn bgr0_to_rgbx(src: &[u8], dst: &mut [u8]) {
         XXX0_TO_XXXX_OR_SHORT,
         BGRA_TO_RGBA_SWIZZLE_IDXS,
         BGRA_TO_RGBA_SWIZZLE_IDXS_SHORT
+    );
+}
+
+#[inline(always)]
+pub fn argb_to_rgba_inplace(src: &mut [u8]) {
+    swizzle_4_wide!(
+        src,
+        src,
+        ARGB_TO_RGBA_SWIZZLE_IDXS,
+        ARGB_TO_RGBA_SWIZZLE_IDXS_SHORT
     );
 }
 
